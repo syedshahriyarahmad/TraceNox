@@ -1,5 +1,7 @@
 import re
 
+from tracenox.models.event import SecurityEvent
+
 
 TIMESTAMP_PATTERN = re.compile(
     r"^(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})"
@@ -17,7 +19,7 @@ SSH_ACCEPTED_PATTERN = re.compile(
 )
 
 
-def parse_ssh_line(line: str) -> dict | None:
+def parse_ssh_line(line: str) -> SecurityEvent | None:
     """Parse a Linux SSH authentication log line."""
 
     timestamp_match = TIMESTAMP_PATTERN.search(line)
@@ -31,23 +33,23 @@ def parse_ssh_line(line: str) -> dict | None:
     failed_match = SSH_FAILED_PATTERN.search(line)
 
     if failed_match:
-        return {
-            "event": "authentication_failed",
-            "timestamp": timestamp,
-            "username": failed_match.group("username"),
-            "source_ip": failed_match.group("source_ip"),
-            "raw_log": line,
-        }
+        return SecurityEvent(
+            event="authentication_failed",
+            timestamp=timestamp,
+            username=failed_match.group("username"),
+            source_ip=failed_match.group("source_ip"),
+            raw_log=line,
+        )
 
     accepted_match = SSH_ACCEPTED_PATTERN.search(line)
 
     if accepted_match:
-        return {
-            "event": "authentication_success",
-            "timestamp": timestamp,
-            "username": accepted_match.group("username"),
-            "source_ip": accepted_match.group("source_ip"),
-            "raw_log": line,
-        }
+        return SecurityEvent(
+            event="authentication_success",
+            timestamp=timestamp,
+            username=accepted_match.group("username"),
+            source_ip=accepted_match.group("source_ip"),
+            raw_log=line,
+        )
 
     return None

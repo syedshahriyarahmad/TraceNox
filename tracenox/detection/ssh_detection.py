@@ -1,9 +1,11 @@
 from collections import Counter
 from datetime import datetime
 
+from tracenox.models.event import SecurityEvent
+
 
 def detect_failed_login_burst(
-    events: list[dict],
+    events: list[SecurityEvent],
     threshold: int = 5,
 ) -> list[dict]:
     """Detect repeated failed SSH logins from the same source IP."""
@@ -11,13 +13,13 @@ def detect_failed_login_burst(
     failed_events = [
         event
         for event in events
-        if event.get("event") == "authentication_failed"
+        if event.event == "authentication_failed"
     ]
 
     ip_counts = Counter(
-        event.get("source_ip")
+        event.source_ip
         for event in failed_events
-        if event.get("source_ip")
+        if event.source_ip
     )
 
     findings = []
@@ -50,7 +52,7 @@ def _parse_timestamp(timestamp: str | None) -> datetime | None:
 
 
 def detect_failed_then_success(
-    events: list[dict],
+    events: list[SecurityEvent],
     threshold: int = 3,
 ) -> list[dict]:
     """Detect successful SSH login after multiple earlier failed attempts."""
@@ -60,12 +62,12 @@ def detect_failed_then_success(
     successful_events = [
         event
         for event in events
-        if event.get("event") == "authentication_success"
+        if event.event == "authentication_success"
     ]
 
     for success_event in successful_events:
-        success_ip = success_event.get("source_ip")
-        success_time = _parse_timestamp(success_event.get("timestamp"))
+        success_ip = success_event.source_ip
+        success_time = _parse_timestamp(success_event.timestamp)
 
         if not success_ip or not success_time:
             continue
@@ -73,13 +75,13 @@ def detect_failed_then_success(
         failed_before_success = []
 
         for event in events:
-            if event.get("event") != "authentication_failed":
+            if event.event != "authentication_failed":
                 continue
 
-            if event.get("source_ip") != success_ip:
+            if event.source_ip != success_ip:
                 continue
 
-            failed_time = _parse_timestamp(event.get("timestamp"))
+            failed_time = _parse_timestamp(event.timestamp)
 
             if failed_time and failed_time < success_time:
                 failed_before_success.append(event)
@@ -91,15 +93,11 @@ def detect_failed_then_success(
                 {
                     "detection": "ssh_failed_then_success",
                     "source_ip": success_ip,
-                    "username": success_event.get("username"),
+                    "username": success_event.username,
                     "failed_attempts": failed_attempts,
                     "threshold": threshold,
-                    "first_failed_at": failed_before_success[0].get(
-                        "timestamp"
-                    ),
-                    "successful_login_at": success_event.get(
-                        "timestamp"
-                    ),
+                    "first_failed_at": failed_before_success[0].timestamp,
+                    "successful_login_at": success_event.timestamp,
                     "severity": "high",
                 }
             )
