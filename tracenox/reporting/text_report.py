@@ -10,9 +10,31 @@ def generate_text_report(result: dict) -> str:
         f"Total lines    : {result['total_lines']}",
         f"Parsed events  : {result['parsed_events']}",
         "",
-        "FINDINGS",
+        "INVESTIGATION TIMELINE",
         "----------------------------------------",
     ]
+
+    timeline = result.get("timeline", [])
+
+    if not timeline:
+        lines.append("No security events found.")
+
+    else:
+        for event in timeline:
+            lines.append(
+                f"{event.timestamp or 'unknown'}  "
+                f"{event.event:<24} "
+                f"{event.username or 'unknown':<12} "
+                f"{event.source_ip or 'unknown'}"
+            )
+
+    lines.extend(
+        [
+            "",
+            "FINDINGS",
+            "----------------------------------------",
+        ]
+    )
 
     findings = result.get("findings", [])
 

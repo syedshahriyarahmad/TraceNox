@@ -1,5 +1,6 @@
 from tracenox.analyzer.log_reader import read_log_file
 from tracenox.analyzer.ssh_parser import parse_ssh_line
+from tracenox.analyzer.timeline import build_timeline
 from tracenox.detection.ssh_detection import (
     detect_failed_login_burst,
     detect_failed_then_success,
@@ -7,7 +8,7 @@ from tracenox.detection.ssh_detection import (
 
 
 def analyze_log_file(file_path: str) -> dict:
-    """Read, parse, and analyze an SSH log."""
+    """Read, parse, order, and analyze an SSH log."""
 
     lines = read_log_file(file_path)
 
@@ -19,19 +20,22 @@ def analyze_log_file(file_path: str) -> dict:
         if event:
             events.append(event)
 
+    timeline = build_timeline(events)
+
     findings = []
 
     findings.extend(
-        detect_failed_login_burst(events)
+        detect_failed_login_burst(timeline)
     )
 
     findings.extend(
-        detect_failed_then_success(events)
+        detect_failed_then_success(timeline)
     )
 
     return {
         "source_file": file_path,
         "total_lines": len(lines),
-        "parsed_events": len(events),
+        "parsed_events": len(timeline),
+        "timeline": timeline,
         "findings": findings,
     }
