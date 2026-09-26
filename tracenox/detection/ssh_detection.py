@@ -46,7 +46,10 @@ def _parse_timestamp(timestamp: str | None) -> datetime | None:
         return None
 
     try:
-        return datetime.strptime(timestamp, "%b %d %H:%M:%S")
+        return datetime.strptime(
+            f"2026 {timestamp}",
+            "%Y %b %d %H:%M:%S",
+        )
     except ValueError:
         return None
 
