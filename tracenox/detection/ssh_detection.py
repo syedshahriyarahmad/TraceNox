@@ -1,5 +1,5 @@
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from tracenox.models.event import SecurityEvent
 
@@ -7,34 +7,59 @@ from tracenox.models.event import SecurityEvent
 def detect_failed_login_burst(
     events: list[SecurityEvent],
     threshold: int = 5,
+    window_minutes: int = 5,
 ) -> list[dict]:
-    """Detect repeated failed SSH logins from the same source IP."""
+    """Detect repeated failed SSH logins within a time window."""
 
     failed_events = [
         event
         for event in events
         if event.event == "authentication_failed"
+        and event.source_ip
+        and event.timestamp
     ]
-
-    ip_counts = Counter(
-        event.source_ip
-        for event in failed_events
-        if event.source_ip
-    )
 
     findings = []
 
-    for source_ip, count in ip_counts.items():
-        if count >= threshold:
-            findings.append(
-                {
-                    "detection": "ssh_failed_login_burst",
-                    "source_ip": source_ip,
-                    "failed_attempts": count,
-                    "threshold": threshold,
-                    "severity": "high",
-                }
-            )
+    events_by_ip: dict[str, list[SecurityEvent]] = {}
+
+    for event in failed_events:
+        events_by_ip.setdefault(event.source_ip, []).append(event)
+
+    for source_ip, ip_events in events_by_ip.items():
+        parsed_events = []
+
+        for event in ip_events:
+            event_time = _parse_timestamp(event.timestamp)
+
+            if event_time:
+                parsed_events.append((event_time, event))
+
+        parsed_events.sort(key=lambda item: item[0])
+
+        for start_index, (start_time, _) in enumerate(parsed_events):
+            window_events = [
+                event
+                for event_time, event in parsed_events[start_index:]
+                if event_time - start_time
+                <= timedelta(minutes=window_minutes)
+            ]
+
+            if len(window_events) >= threshold:
+                findings.append(
+                    {
+                        "detection": "ssh_failed_login_burst",
+                        "source_ip": source_ip,
+                        "failed_attempts": len(window_events),
+                        "threshold": threshold,
+                        "window_minutes": window_minutes,
+                        "first_failed_at": window_events[0].timestamp,
+                        "last_failed_at": window_events[-1].timestamp,
+                        "severity": "high",
+                    }
+                )
+
+                break
 
     return findings
 
