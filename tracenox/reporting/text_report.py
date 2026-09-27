@@ -10,9 +10,67 @@ def generate_text_report(result: dict) -> str:
         f"Total lines    : {result['total_lines']}",
         f"Parsed events  : {result['parsed_events']}",
         "",
-        "INVESTIGATION TIMELINE",
+        "RISK ASSESSMENT",
         "----------------------------------------",
     ]
+
+    risk_assessment = result.get("risk_assessment", {})
+
+    if risk_assessment:
+        lines.extend(
+            [
+                f"Risk score     : {risk_assessment.get('score', 0)}/100",
+                f"Risk level     : {risk_assessment.get('level', 'unknown').upper()}",
+                "",
+                "Evidence:",
+            ]
+        )
+
+        reasons = risk_assessment.get("reasons", [])
+
+        if reasons:
+            for reason in reasons:
+                lines.append(f"- {reason}")
+        else:
+            lines.append("- No significant risk evidence found.")
+
+    else:
+        lines.append("Risk assessment unavailable.")
+
+    lines.extend(
+        [
+            "",
+            "IP INVESTIGATION SUMMARY",
+            "----------------------------------------",
+        ]
+    )
+
+    ip_summary = result.get("ip_summary", {})
+
+    if not ip_summary:
+        lines.append("No source IP activity found.")
+
+    else:
+        for source_ip, summary in ip_summary.items():
+            lines.extend(
+                [
+                    f"Source IP       : {source_ip}",
+                    f"Total events    : {summary['total_events']}",
+                    f"Failed logins   : {summary['failed_logins']}",
+                    f"Successful      : {summary['successful_logins']}",
+                    f"Usernames       : {', '.join(summary['usernames']) or 'none'}",
+                    f"First seen      : {summary['first_seen'] or 'unknown'}",
+                    f"Last seen       : {summary['last_seen'] or 'unknown'}",
+                    "",
+                ]
+            )
+
+    lines.extend(
+        [
+            "INVESTIGATION TIMELINE",
+            "----------------------------------------",
+        ]
+    )
 
     timeline = result.get("timeline", [])
 
@@ -51,6 +109,15 @@ def generate_text_report(result: dict) -> str:
                     f"    Threshold      : {finding['threshold']}",
                 ]
             )
+
+            if finding["detection"] == "ssh_failed_login_burst":
+                lines.extend(
+                    [
+                        f"    Window         : {finding.get('window_minutes', 'unknown')} minutes",
+                        f"    First failed at: {finding.get('first_failed_at', 'unknown')}",
+                        f"    Last failed at : {finding.get('last_failed_at', 'unknown')}",
+                    ]
+                )
 
             if finding["detection"] == "ssh_failed_then_success":
                 lines.extend(
