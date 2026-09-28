@@ -13,7 +13,6 @@ def analyze_log_file(file_path: str) -> dict:
     """Read, parse, order, and analyze an SSH log."""
 
     lines = read_log_file(file_path)
-
     events = []
 
     for line in lines:
@@ -25,14 +24,8 @@ def analyze_log_file(file_path: str) -> dict:
     timeline = build_timeline(events)
 
     findings = []
-
-    findings.extend(
-        detect_failed_login_burst(timeline)
-    )
-
-    findings.extend(
-        detect_failed_then_success(timeline)
-    )
+    findings.extend(detect_failed_login_burst(timeline))
+    findings.extend(detect_failed_then_success(timeline))
 
     ip_summary = build_ip_summary(timeline)
 
@@ -40,6 +33,33 @@ def analyze_log_file(file_path: str) -> dict:
         timeline,
         findings,
     )
+
+    # Calculate a separate risk score for each source IP.
+    ip_risk_assessment = {}
+
+    source_ips = {
+        event.source_ip
+        for event in timeline
+        if event.source_ip
+    }
+
+    for source_ip in sorted(source_ips):
+        ip_events = [
+            event
+            for event in timeline
+            if event.source_ip == source_ip
+        ]
+
+        ip_findings = [
+            finding
+            for finding in findings
+            if finding.get("source_ip") == source_ip
+        ]
+
+        ip_risk_assessment[source_ip] = calculate_risk_score(
+            ip_events,
+            ip_findings,
+        )
 
     return {
         "source_file": file_path,
@@ -49,4 +69,5 @@ def analyze_log_file(file_path: str) -> dict:
         "findings": findings,
         "ip_summary": ip_summary,
         "risk_assessment": risk_assessment,
+        "ip_risk_assessment": ip_risk_assessment,
     }

@@ -1,5 +1,3 @@
-from collections import Counter
-
 from tracenox.models.event import SecurityEvent
 
 
@@ -40,11 +38,11 @@ def calculate_risk_score(
             f"{failed_count} failed authentication attempts (+{points})"
         )
 
-    # Evidence 2: successful login after failed attempts
+    # Evidence 2: successful login after repeated failures
     failed_then_success = [
         finding
         for finding in findings
-        if finding["detection"] == "ssh_failed_then_success"
+        if finding.get("detection") == "ssh_failed_then_success"
     ]
 
     if failed_then_success:
@@ -61,9 +59,7 @@ def calculate_risk_score(
         )
     elif len(usernames) == 2:
         score += 10
-        reasons.append(
-            "2 usernames targeted (+10)"
-        )
+        reasons.append("2 usernames targeted (+10)")
 
     # Evidence 4: successful authentication exists
     if successful_events:
@@ -93,3 +89,4 @@ def calculate_risk_score(
         "level": level,
         "reasons": reasons,
     }
+
