@@ -10,13 +10,14 @@ def generate_html_report(result: dict) -> str:
     ip_risks = result.get("ip_risk_assessment", {})
     findings = result.get("findings", [])
     timeline = result.get("timeline", [])
+    integrity = result.get("integrity", {})
 
     ip_rows = []
     for source_ip, summary in sorted(ip_summary.items()):
         ip_risk = ip_risks.get(source_ip, {})
         ip_rows.append(
             "<tr>"
-            f"<td>{escape(source_ip)}</td>"
+            f"<td>{escape(str(source_ip))}</td>"
             f"<td>{summary.get('total_events', 0)}</td>"
             f"<td>{summary.get('failed_logins', 0)}</td>"
             f"<td>{summary.get('successful_logins', 0)}</td>"
@@ -25,16 +26,18 @@ def generate_html_report(result: dict) -> str:
             "</tr>"
         )
     if not ip_rows:
-        ip_rows.append("<tr><td colspan='6'>No source IP activity found.</td></tr>")
+        ip_rows.append(
+            "<tr><td colspan='6'>No source IP activity found.</td></tr>"
+        )
 
     finding_rows = []
     for finding in findings:
         evidence = finding.get("evidence", [])
         evidence_html = "".join(
             "<div class='evidence'>"
-            f"<strong>{escape(item.get('timestamp') or 'unknown')}</strong> "
-            f"{escape(item.get('event') or 'unknown')}<br>"
-            f"<code>{escape(item.get('raw_log') or '')}</code>"
+            f"<strong>{escape(str(item.get('timestamp') or 'unknown'))}</strong> "
+            f"{escape(str(item.get('event') or 'unknown'))}<br>"
+            f"<code>{escape(str(item.get('raw_log') or ''))}</code>"
             "</div>"
             for item in evidence
         )
@@ -58,20 +61,63 @@ def generate_html_report(result: dict) -> str:
     for event in timeline:
         timeline_rows.append(
             "<tr>"
-            f"<td>{escape(event.timestamp or 'unknown')}</td>"
-            f"<td>{escape(event.event)}</td>"
-            f"<td>{escape(event.username or 'unknown')}</td>"
-            f"<td>{escape(event.source_ip or 'unknown')}</td>"
-            f"<td><code>{escape(event.raw_log)}</code></td>"
+            f"<td>{escape(str(event.timestamp or 'unknown'))}</td>"
+            f"<td>{escape(str(event.event))}</td>"
+            f"<td>{escape(str(event.username or 'unknown'))}</td>"
+            f"<td>{escape(str(event.source_ip or 'unknown'))}</td>"
+            f"<td><code>{escape(str(event.raw_log))}</code></td>"
             "</tr>"
         )
     if not timeline_rows:
-        timeline_rows.append("<tr><td colspan='5'>No security events found.</td></tr>")
+        timeline_rows.append(
+            "<tr><td colspan='5'>No security events found.</td></tr>"
+        )
 
     reasons = "".join(
-        f"<li>{escape(reason)}</li>"
+        f"<li>{escape(str(reason))}</li>"
         for reason in risk.get("reasons", [])
     ) or "<li>No significant risk evidence found.</li>"
+
+    source_hash = integrity.get("source_sha256")
+    if source_hash:
+        hash_display = (
+            f"<code class='hash'>{escape(str(source_hash))}</code>"
+            f"<button type='button' class='copy-button' "
+            f"onclick=\"navigator.clipboard.writeText("
+            f"document.getElementById('source-hash').textContent)"
+            f".then(()=>this.textContent='Copied')"
+            f".catch(()=>this.textContent='Copy failed')\">"
+            f"Copy SHA-256</button>"
+        )
+        hash_display = hash_display.replace(
+            f"<code class='hash'>{escape(str(source_hash))}</code>",
+            f"<code class='hash' id='source-hash'>{escape(str(source_hash))}</code>",
+        )
+    else:
+        hash_display = "<em>Integrity metadata unavailable.</em>"
+
+    integrity_rows = [
+        ("Generated at (UTC)", integrity.get("generated_at_utc", "Unavailable")),
+        ("Source", integrity.get("source", result.get("source_file", "unknown"))),
+        ("Hash algorithm", integrity.get("hash_algorithm", "Unavailable")),
+        ("Parsed events", integrity.get("parsed_events", result.get("parsed_events", 0))),
+        ("Findings count", integrity.get("findings_count", len(findings))),
+        (
+            "Supporting evidence count",
+            integrity.get(
+                "supporting_evidence_count",
+                sum(len(f.get("evidence", [])) for f in findings),
+            ),
+        ),
+    ]
+
+    integrity_table_rows = "".join(
+        "<tr>"
+        f"<th>{escape(str(label))}</th>"
+        f"<td>{escape(str(value))}</td>"
+        "</tr>"
+        for label, value in integrity_rows
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -91,7 +137,9 @@ table {{width:100%;border-collapse:collapse}}
 th,td {{padding:11px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}}
 th {{background:#f8fafc}}
 code {{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}}
+.hash {{display:block;word-break:break-all;padding:12px;background:#f1f5f9;border-radius:6px}}
 .evidence {{padding:8px;margin:4px 0;background:#f8fafc;border-radius:6px;min-width:240px}}
+.copy-button {{margin-top:8px;padding:8px 12px;border:0;border-radius:6px;background:#1d4ed8;color:white;cursor:pointer}}
 footer {{text-align:center;padding:20px;color:#64748b}}
 </style>
 </head>
@@ -107,6 +155,7 @@ footer {{text-align:center;padding:20px;color:#64748b}}
 <div class="metric"><h3>Source IPs</h3><div class="score">{len(ip_summary)}</div></div>
 <div class="metric"><h3>Findings</h3><div class="score">{len(findings)}</div></div>
 </section>
+
 <section class="card">
 <h2>Investigation Details</h2>
 <p><strong>Source:</strong> {escape(str(result.get('source_file', 'unknown')))}</p>
@@ -114,16 +163,30 @@ footer {{text-align:center;padding:20px;color:#64748b}}
 <h3>Overall risk evidence</h3><ul>{reasons}</ul>
 <p>Rule-based risk scores indicate investigation priority; they do not independently prove malicious activity.</p>
 </section>
+
+<section class="card">
+<h2>Integrity &amp; Reproducibility</h2>
+<p>Metadata recorded during analysis. The hash identifies the analyzed input bytes; it does not by itself prove that the input is authentic or unchanged since collection.</p>
+<h3>Source SHA-256</h3>
+{hash_display}
+<table>
+<thead><tr><th>Metadata</th><th>Value</th></tr></thead>
+<tbody>{integrity_table_rows}</tbody>
+</table>
+</section>
+
 <section class="card">
 <h2>IP Investigation Summary</h2>
 <table><thead><tr><th>Source IP</th><th>Events</th><th>Failed</th><th>Successful</th><th>Risk Score</th><th>Risk Level</th></tr></thead>
 <tbody>{''.join(ip_rows)}</tbody></table>
 </section>
+
 <section class="card">
 <h2>Findings and Supporting Evidence</h2>
 <table><thead><tr><th>Detection</th><th>Source IP</th><th>Severity</th><th>Failed Attempts</th><th>Evidence Count</th><th>Original Log Evidence</th></tr></thead>
 <tbody>{''.join(finding_rows)}</tbody></table>
 </section>
+
 <section class="card">
 <h2>Investigation Timeline</h2>
 <table><thead><tr><th>Timestamp</th><th>Event</th><th>Username</th><th>Source IP</th><th>Original Log Line</th></tr></thead>
