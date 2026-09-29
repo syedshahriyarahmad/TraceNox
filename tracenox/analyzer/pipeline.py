@@ -1,3 +1,4 @@
+from tracenox.analyzer.evidence import attach_evidence_to_findings
 from tracenox.analyzer.ip_summary import build_ip_summary
 from tracenox.analyzer.log_reader import read_journal_lines, read_log_file
 from tracenox.analyzer.ssh_parser import parse_ssh_line
@@ -23,6 +24,7 @@ def _analyze_lines(lines: list[str], source_file: str) -> dict:
     findings = []
     findings.extend(detect_failed_login_burst(timeline))
     findings.extend(detect_failed_then_success(timeline))
+    findings = attach_evidence_to_findings(findings, timeline)
 
     ip_summary = build_ip_summary(timeline)
     risk_assessment = calculate_risk_score(timeline, findings)
@@ -63,12 +65,11 @@ def _analyze_lines(lines: list[str], source_file: str) -> dict:
 
 def analyze_log_file(file_path: str) -> dict:
     """Analyze a log file."""
-    lines = read_log_file(file_path)
-    return _analyze_lines(lines, file_path)
+    return _analyze_lines(read_log_file(file_path), file_path)
 
 
 def analyze_journal(unit: str = "ssh", since: str = "today") -> dict:
-    """Analyze real systemd journal entries for a systemd unit."""
+    """Analyze real systemd journal entries."""
     lines = read_journal_lines(unit=unit, since=since)
     source = f"systemd journal: unit={unit}, since={since}"
     return _analyze_lines(lines, source)

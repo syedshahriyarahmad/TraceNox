@@ -1,35 +1,5 @@
 def generate_text_report(result: dict) -> str:
     """Generate a human-readable TraceNox security report."""
-
-    lines = [
-        "",
-        "========================================",
-        "          TRACENOX SECURITY REPORT",
-        "========================================",
-        f"Source file    : {result['source_file']}",
-        f"Total lines    : {result['total_lines']}",
-        f"Parsed events  : {result['parsed_events']}",
-        "",
-        "RISK ASSESSMENT",
-        "----------------------------------------",
-    ]
-
-    risk_assessment = result.get("risk_assessment", {})
-
-    if risk_assessment:
-        lines.extend(
-            [
-                f"Risk score     : {risk_assessment.get('score', 0)}/100",
-                f"Risk level     : {risk_assessment.get('level', 'unknown').upper()}",
-                "",
-                "Evidence:",
-            ]
-        )
-
-        reasons = risk_assessment.get("reasons", [])
-def generate_text_report(result: dict) -> str:
-    """Generate a human-readable TraceNox security report."""
-
     lines = [
         "",
         "========================================",
@@ -43,36 +13,23 @@ def generate_text_report(result: dict) -> str:
         "----------------------------------------",
     ]
 
-    risk_assessment = result.get("risk_assessment", {})
-
-    if risk_assessment:
+    risk = result.get("risk_assessment", {})
+    if risk:
+        lines.extend([
+            f"Risk score     : {risk.get('score', 0)}/100",
+            f"Risk level     : {risk.get('level', 'unknown').upper()}",
+            "",
+            "Evidence:",
+        ])
+        reasons = risk.get("reasons", [])
         lines.extend(
-            [
-                f"Risk score     : {risk_assessment.get('score', 0)}/100",
-                f"Risk level     : {risk_assessment.get('level', 'unknown').upper()}",
-                "",
-                "Evidence:",
-            ]
+            [f"- {reason}" for reason in reasons]
+            if reasons else ["- No significant risk evidence found."]
         )
-
-        reasons = risk_assessment.get("reasons", [])
-
-        if reasons:
-            for reason in reasons:
-                lines.append(f"- {reason}")
-        else:
-            lines.append("- No significant risk evidence found.")
     else:
         lines.append("Risk assessment unavailable.")
 
-    lines.extend(
-        [
-            "",
-            "IP INVESTIGATION SUMMARY",
-            "----------------------------------------",
-        ]
-    )
-
+    lines.extend(["", "IP INVESTIGATION SUMMARY", "----------------------------------------"])
     ip_summary = result.get("ip_summary", {})
     ip_risks = result.get("ip_risk_assessment", {})
 
@@ -81,41 +38,27 @@ def generate_text_report(result: dict) -> str:
     else:
         for source_ip, summary in ip_summary.items():
             ip_risk = ip_risks.get(source_ip, {})
-
+            lines.extend([
+                "",
+                f"Source IP       : {source_ip}",
+                f"Total events    : {summary['total_events']}",
+                f"Failed logins   : {summary['failed_logins']}",
+                f"Successful      : {summary['successful_logins']}",
+                f"Usernames       : {', '.join(summary['usernames']) or 'none'}",
+                f"First seen      : {summary['first_seen'] or 'unknown'}",
+                f"Last seen       : {summary['last_seen'] or 'unknown'}",
+                f"IP risk score   : {ip_risk.get('score', 'N/A')}/100",
+                f"IP risk level   : {str(ip_risk.get('level', 'unknown')).upper()}",
+                "IP risk evidence:",
+            ])
+            reasons = ip_risk.get("reasons", [])
             lines.extend(
-                [
-                    "",
-                    f"Source IP       : {source_ip}",
-                    f"Total events    : {summary['total_events']}",
-                    f"Failed logins   : {summary['failed_logins']}",
-                    f"Successful      : {summary['successful_logins']}",
-                    f"Usernames       : {', '.join(summary['usernames']) or 'none'}",
-                    f"First seen      : {summary['first_seen'] or 'unknown'}",
-                    f"Last seen       : {summary['last_seen'] or 'unknown'}",
-                    f"IP risk score   : {ip_risk.get('score', 'N/A')}/100",
-                    f"IP risk level   : {str(ip_risk.get('level', 'unknown')).upper()}",
-                    "IP risk evidence:",
-                ]
+                [f"  - {reason}" for reason in reasons]
+                if reasons else ["  - No significant risk evidence found."]
             )
 
-            ip_reasons = ip_risk.get("reasons", [])
-
-            if ip_reasons:
-                for reason in ip_reasons:
-                    lines.append(f"  - {reason}")
-            else:
-                lines.append("  - No significant risk evidence found.")
-
-    lines.extend(
-        [
-            "",
-            "INVESTIGATION TIMELINE",
-            "----------------------------------------",
-        ]
-    )
-
+    lines.extend(["", "INVESTIGATION TIMELINE", "----------------------------------------"])
     timeline = result.get("timeline", [])
-
     if not timeline:
         lines.append("No security events found.")
     else:
@@ -126,55 +69,41 @@ def generate_text_report(result: dict) -> str:
                 f"{event.username or 'unknown':<12} "
                 f"{event.source_ip or 'unknown'}"
             )
+            lines.append(f"    Raw evidence: {event.raw_log}")
 
-    lines.extend(
-        [
-            "",
-            "FINDINGS",
-            "----------------------------------------",
-        ]
-    )
-
+    lines.extend(["", "FINDINGS", "----------------------------------------"])
     findings = result.get("findings", [])
 
     if not findings:
         lines.append("No suspicious activity detected.")
     else:
         for index, finding in enumerate(findings, start=1):
-            lines.extend(
-                [
-                    f"[{index}] Detection     : {finding['detection']}",
-                    f"    Source IP      : {finding['source_ip']}",
-                    f"    Failed attempts: {finding['failed_attempts']}",
-                    f"    Threshold      : {finding['threshold']}",
-                ]
-            )
+            lines.extend([
+                f"[{index}] Detection     : {finding.get('detection', 'unknown')}",
+                f"    Source IP      : {finding.get('source_ip', 'unknown')}",
+                f"    Failed attempts: {finding.get('failed_attempts', 'N/A')}",
+                f"    Severity       : {str(finding.get('severity', 'unknown')).upper()}",
+                f"    Evidence count : {finding.get('evidence_count', 0)}",
+            ])
 
-            if finding["detection"] == "ssh_failed_login_burst":
-                lines.extend(
-                    [
-                        f"    Window         : {finding.get('window_minutes', 'unknown')} minutes",
-                        f"    First failed at: {finding.get('first_failed_at', 'unknown')}",
-                        f"    Last failed at : {finding.get('last_failed_at', 'unknown')}",
-                    ]
+            if finding.get("window_minutes") is not None:
+                lines.append(
+                    f"    Window         : {finding['window_minutes']} minutes"
                 )
+            if finding.get("username"):
+                lines.append(f"    Username       : {finding['username']}")
 
-            if finding["detection"] == "ssh_failed_then_success":
-                lines.extend(
-                    [
-                        f"    Username       : {finding.get('username', 'unknown')}",
-                        f"    First failed at: {finding.get('first_failed_at', 'unknown')}",
-                        f"    Successful at  : {finding.get('successful_login_at', 'unknown')}",
-                    ]
-                )
-
-            lines.extend(
-                [
-                    f"    Severity       : {finding['severity'].upper()}",
-                    "",
-                ]
-            )
+            evidence = finding.get("evidence", [])
+            if evidence:
+                lines.append("    Supporting log evidence:")
+                for item in evidence:
+                    lines.append(
+                        f"      [{item.get('timestamp') or 'unknown'}] "
+                        f"{item.get('raw_log', '')}"
+                    )
+            else:
+                lines.append("    Supporting log evidence: none available")
+            lines.append("")
 
     lines.append("========================================")
-
     return "\n".join(lines)
