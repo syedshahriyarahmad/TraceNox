@@ -49,6 +49,14 @@ def main():
         help="Save an HTML investigation report",
     )
     parser.add_argument(
+        "--ip-reputation",
+        action="store_true",
+        help=(
+            "Explicitly query AbuseIPDB for public source IPs. "
+            "Requires ABUSEIPDB_API_KEY."
+        ),
+    )
+    parser.add_argument(
         "--verify-hash",
         metavar="FILE",
         help="Verify a file against an expected SHA-256 hash",
@@ -64,7 +72,13 @@ def main():
     if args.verify_hash:
         if not args.expected_sha256:
             parser.error("--verify-hash requires --expected-sha256.")
-        if args.log_file or args.journal or args.json_output or args.html_output:
+        if (
+            args.log_file
+            or args.journal
+            or args.json_output
+            or args.html_output
+            or args.ip_reputation
+        ):
             parser.error(
                 "--verify-hash is a standalone operation; do not combine it "
                 "with log analysis or report output options."
@@ -75,15 +89,15 @@ def main():
                 args.verify_hash,
                 args.expected_sha256,
             )
-            print(f"File           : {args.verify_hash}")
+            print(f"File              : {args.verify_hash}")
             print(f"Calculated SHA-256: {actual_hash}")
 
             if matches:
-                print("Verification   : MATCH")
-                print("Result         : File bytes match the expected SHA-256.")
+                print("Verification      : MATCH")
+                print("Result            : File bytes match the expected SHA-256.")
             else:
-                print("Verification   : MISMATCH")
-                print("Result         : File bytes do not match the expected SHA-256.")
+                print("Verification      : MISMATCH")
+                print("Result            : File bytes do not match the expected SHA-256.")
                 sys.exit(1)
             return
         except (FileNotFoundError, ValueError) as error:
@@ -100,15 +114,39 @@ def main():
         parser.error("Use either --journal or a log_file, not both.")
 
     if not args.journal and not args.log_file:
-        parser.error("Provide a log_file, use --journal, or use --verify-hash.")
+        parser.error(
+            "Provide a log_file, use --journal, or use --verify-hash."
+        )
 
     try:
         if args.journal:
-            result = analyze_journal(unit=args.unit, since=args.since)
+            result = analyze_journal(
+                unit=args.unit,
+                since=args.since,
+                enable_ip_reputation=args.ip_reputation,
+            )
         else:
-            result = analyze_log_file(args.log_file)
+            result = analyze_log_file(
+                args.log_file,
+                enable_ip_reputation=args.ip_reputation,
+            )
 
         print(generate_text_report(result))
+
+        if args.ip_reputation:
+            print("\nIP Reputation Results")
+            print("---------------------")
+            for address, reputation in result["ip_reputation"].items():
+                print(
+                    f"{address}: {reputation.get('status', 'unknown')}"
+                )
+                if reputation.get("abuse_confidence_score") is not None:
+                    print(
+                        "  Abuse confidence score: "
+                        f"{reputation['abuse_confidence_score']}"
+                    )
+                if reputation.get("reason"):
+                    print(f"  Note: {reputation['reason']}")
 
         if args.json_output:
             save_json_report(result, args.json_output)

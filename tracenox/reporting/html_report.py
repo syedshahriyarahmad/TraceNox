@@ -8,6 +8,7 @@ def generate_html_report(result: dict) -> str:
     risk = result.get("risk_assessment", {})
     ip_summary = result.get("ip_summary", {})
     ip_risks = result.get("ip_risk_assessment", {})
+    ip_reputation = result.get("ip_reputation", {})
     findings = result.get("findings", [])
     timeline = result.get("timeline", [])
     integrity = result.get("integrity", {})
@@ -21,13 +22,37 @@ def generate_html_report(result: dict) -> str:
             f"<td>{summary.get('total_events', 0)}</td>"
             f"<td>{summary.get('failed_logins', 0)}</td>"
             f"<td>{summary.get('successful_logins', 0)}</td>"
-            f"<td>{ip_risk.get('score', 'N/A')}/100</td>"
+            f"<td>{escape(str(ip_risk.get('score', 'N/A')))}/100</td>"
             f"<td>{escape(str(ip_risk.get('level', 'unknown')).upper())}</td>"
             "</tr>"
         )
+
     if not ip_rows:
         ip_rows.append(
             "<tr><td colspan='6'>No source IP activity found.</td></tr>"
+        )
+
+    reputation_rows = []
+    for source_ip, reputation in sorted(ip_reputation.items()):
+        reputation = reputation if isinstance(reputation, dict) else {}
+        reputation_rows.append(
+            "<tr>"
+            f"<td>{escape(str(reputation.get('ip_address', source_ip)))}</td>"
+            f"<td>{escape(str(reputation.get('status', 'unknown')).replace('_', ' ').title())}</td>"
+            f"<td>{escape(str(reputation.get('abuse_confidence_score', 'N/A')))}</td>"
+            f"<td>{escape(str(reputation.get('total_reports', 'N/A')))}</td>"
+            f"<td>{escape(str(reputation.get('country_code') or 'N/A'))}</td>"
+            f"<td>{escape(str(reputation.get('isp') or 'N/A'))}</td>"
+            f"<td>{escape(str(reputation.get('reason') or reputation.get('message') or 'N/A'))}</td>"
+            "</tr>"
+        )
+
+    if not reputation_rows:
+        reputation_rows.append(
+            "<tr><td colspan='7'>"
+            "No IP reputation data available. Use --ip-reputation to request "
+            "lookups for eligible public IP addresses."
+            "</td></tr>"
         )
 
     finding_rows = []
@@ -54,8 +79,11 @@ def generate_html_report(result: dict) -> str:
             f"<td>{evidence_html}</td>"
             "</tr>"
         )
+
     if not finding_rows:
-        finding_rows.append("<tr><td colspan='6'>No findings detected.</td></tr>")
+        finding_rows.append(
+            "<tr><td colspan='6'>No findings detected.</td></tr>"
+        )
 
     timeline_rows = []
     for event in timeline:
@@ -68,6 +96,7 @@ def generate_html_report(result: dict) -> str:
             f"<td><code>{escape(str(event.raw_log))}</code></td>"
             "</tr>"
         )
+
     if not timeline_rows:
         timeline_rows.append(
             "<tr><td colspan='5'>No security events found.</td></tr>"
@@ -81,17 +110,13 @@ def generate_html_report(result: dict) -> str:
     source_hash = integrity.get("source_sha256")
     if source_hash:
         hash_display = (
-            f"<code class='hash'>{escape(str(source_hash))}</code>"
-            f"<button type='button' class='copy-button' "
-            f"onclick=\"navigator.clipboard.writeText("
-            f"document.getElementById('source-hash').textContent)"
-            f".then(()=>this.textContent='Copied')"
-            f".catch(()=>this.textContent='Copy failed')\">"
-            f"Copy SHA-256</button>"
-        )
-        hash_display = hash_display.replace(
-            f"<code class='hash'>{escape(str(source_hash))}</code>",
-            f"<code class='hash' id='source-hash'>{escape(str(source_hash))}</code>",
+            f"<code class='hash' id='source-hash'>{escape(str(source_hash))}</code>"
+            "<button type='button' class='copy-button' "
+            "onclick=\"navigator.clipboard.writeText("
+            "document.getElementById('source-hash').textContent)"
+            ".then(()=>this.textContent='Copied')"
+            ".catch(()=>this.textContent='Copy failed')\">"
+            "Copy SHA-256</button>"
         )
     else:
         hash_display = "<em>Integrity metadata unavailable.</em>"
@@ -141,6 +166,7 @@ code {{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}}
 .evidence {{padding:8px;margin:4px 0;background:#f8fafc;border-radius:6px;min-width:240px}}
 .copy-button {{margin-top:8px;padding:8px 12px;border:0;border-radius:6px;background:#1d4ed8;color:white;cursor:pointer}}
 footer {{text-align:center;padding:20px;color:#64748b}}
+.note {{color:#475569;font-size:14px}}
 </style>
 </head>
 <body>
@@ -177,20 +203,35 @@ footer {{text-align:center;padding:20px;color:#64748b}}
 
 <section class="card">
 <h2>IP Investigation Summary</h2>
-<table><thead><tr><th>Source IP</th><th>Events</th><th>Failed</th><th>Successful</th><th>Risk Score</th><th>Risk Level</th></tr></thead>
-<tbody>{''.join(ip_rows)}</tbody></table>
+<table>
+<thead><tr><th>Source IP</th><th>Events</th><th>Failed</th><th>Successful</th><th>Risk Score</th><th>Risk Level</th></tr></thead>
+<tbody>{''.join(ip_rows)}</tbody>
+</table>
+</section>
+
+<section class="card">
+<h2>IP Reputation Intelligence</h2>
+<p class="note">External reputation results are contextual intelligence, not proof that an address is malicious. Results depend on provider data, lookup status, and availability.</p>
+<table>
+<thead><tr><th>IP Address</th><th>Status</th><th>Abuse Score</th><th>Total Reports</th><th>Country</th><th>ISP</th><th>Details</th></tr></thead>
+<tbody>{''.join(reputation_rows)}</tbody>
+</table>
 </section>
 
 <section class="card">
 <h2>Findings and Supporting Evidence</h2>
-<table><thead><tr><th>Detection</th><th>Source IP</th><th>Severity</th><th>Failed Attempts</th><th>Evidence Count</th><th>Original Log Evidence</th></tr></thead>
-<tbody>{''.join(finding_rows)}</tbody></table>
+<table>
+<thead><tr><th>Detection</th><th>Source IP</th><th>Severity</th><th>Failed Attempts</th><th>Evidence Count</th><th>Original Log Evidence</th></tr></thead>
+<tbody>{''.join(finding_rows)}</tbody>
+</table>
 </section>
 
 <section class="card">
 <h2>Investigation Timeline</h2>
-<table><thead><tr><th>Timestamp</th><th>Event</th><th>Username</th><th>Source IP</th><th>Original Log Line</th></tr></thead>
-<tbody>{''.join(timeline_rows)}</tbody></table>
+<table>
+<thead><tr><th>Timestamp</th><th>Event</th><th>Username</th><th>Source IP</th><th>Original Log Line</th></tr></thead>
+<tbody>{''.join(timeline_rows)}</tbody>
+</table>
 </section>
 </main>
 <footer>Generated by TraceNox</footer>
@@ -200,7 +241,7 @@ footer {{text-align:center;padding:20px;color:#64748b}}
 
 
 def save_html_report(result: dict, output_path: str) -> None:
-    """Save the standalone HTML report."""
+    """Save the standalone HTML investigation report."""
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(generate_html_report(result), encoding="utf-8")

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tracenox.analyzer.evidence import attach_evidence_to_findings
 from tracenox.analyzer.integrity import build_integrity_metadata
+from tracenox.analyzer.ip_reputation import lookup_abuseipdb
 from tracenox.analyzer.ip_summary import build_ip_summary
 from tracenox.analyzer.log_reader import read_journal_lines, read_log_file
 from tracenox.analyzer.ssh_parser import parse_ssh_line
@@ -19,8 +20,9 @@ def _analyze_lines(
     lines: list[str],
     source_file: str,
     source_bytes: bytes | None = None,
+    enable_ip_reputation: bool = False,
 ) -> dict:
-    """Analyze log lines and attach integrity metadata."""
+    """Analyze logs and optionally enrich public IPs with reputation data."""
     events = []
 
     for line in lines:
@@ -56,6 +58,20 @@ def _analyze_lines(
             ip_events, ip_findings
         )
 
+    ip_reputation = {}
+    for source_ip in sorted(source_ips):
+        if enable_ip_reputation:
+            ip_reputation[source_ip] = lookup_abuseipdb(source_ip)
+        else:
+            ip_reputation[source_ip] = {
+                "ip_address": source_ip,
+                "status": "not_requested",
+                "reason": (
+                    "External reputation lookup is disabled. "
+                    "Use --ip-reputation to enable it."
+                ),
+            }
+
     if source_bytes is None:
         source_bytes = "\n".join(lines).encode("utf-8")
 
@@ -75,11 +91,15 @@ def _analyze_lines(
         "ip_summary": ip_summary,
         "risk_assessment": risk_assessment,
         "ip_risk_assessment": ip_risk_assessment,
+        "ip_reputation": ip_reputation,
         "integrity": integrity,
     }
 
 
-def analyze_log_file(file_path: str) -> dict:
+def analyze_log_file(
+    file_path: str,
+    enable_ip_reputation: bool = False,
+) -> dict:
     """Analyze a log file and hash its original bytes."""
     path = Path(file_path)
 
@@ -95,10 +115,15 @@ def analyze_log_file(file_path: str) -> dict:
         lines=lines,
         source_file=file_path,
         source_bytes=source_bytes,
+        enable_ip_reputation=enable_ip_reputation,
     )
 
 
-def analyze_journal(unit: str = "ssh", since: str = "today") -> dict:
+def analyze_journal(
+    unit: str = "ssh",
+    since: str = "today",
+    enable_ip_reputation: bool = False,
+) -> dict:
     """Analyze systemd journal output and hash the captured text."""
     lines = read_journal_lines(unit=unit, since=since)
     source = f"systemd journal: unit={unit}, since={since}"
@@ -107,4 +132,5 @@ def analyze_journal(unit: str = "ssh", since: str = "today") -> dict:
         lines=lines,
         source_file=source,
         source_bytes="\n".join(lines).encode("utf-8"),
+        enable_ip_reputation=enable_ip_reputation,
     )

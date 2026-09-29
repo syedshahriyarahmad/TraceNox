@@ -98,3 +98,105 @@ def test_html_report_displays_integrity_metadata():
     assert "2026-09-29T12:00:00+00:00" in report
     assert "abc123" in report
     assert "Copy SHA-256" in report
+
+
+def test_html_report_displays_ip_reputation():
+    result = {
+        "source_file": "auth.log",
+        "total_lines": 1,
+        "parsed_events": 1,
+        "timeline": [],
+        "findings": [],
+        "ip_summary": {},
+        "risk_assessment": {"score": 0, "level": "low", "reasons": []},
+        "ip_risk_assessment": {},
+        "ip_reputation": {
+            "8.8.8.8": {
+                "ip_address": "8.8.8.8",
+                "status": "success",
+                "abuse_confidence_score": 25,
+                "total_reports": 12,
+                "country_code": "US",
+                "isp": "Example ISP",
+                "reason": "Reputation lookup completed",
+            }
+        },
+    }
+
+    report = generate_html_report(result)
+
+    assert "IP Reputation Intelligence" in report
+    assert "8.8.8.8" in report
+    assert "Success" in report
+    assert "25" in report
+    assert "12" in report
+    assert "Example ISP" in report
+
+
+def test_html_report_handles_missing_reputation():
+    result = {
+        "source_file": "auth.log",
+        "total_lines": 0,
+        "parsed_events": 0,
+        "timeline": [],
+        "findings": [],
+        "ip_summary": {},
+        "risk_assessment": {"score": 0, "level": "low", "reasons": []},
+        "ip_risk_assessment": {},
+    }
+
+    report = generate_html_report(result)
+
+    assert "IP Reputation Intelligence" in report
+    assert "No IP reputation data available" in report
+
+
+def test_html_report_displays_ip_reputation():
+    result = {
+        "source_file": "auth.log",
+        "total_lines": 1,
+        "parsed_events": 1,
+        "timeline": [],
+        "findings": [],
+        "ip_summary": {},
+        "risk_assessment": {"score": 0, "level": "low", "reasons": []},
+        "ip_risk_assessment": {},
+        "ip_reputation": {
+            "8.8.8.8": {
+                "ip_address": "8.8.8.8",
+                "status": "success",
+                "abuse_confidence_score": 25,
+                "total_reports": 12,
+                "country_code": "US",
+                "isp": "Example ISP",
+                "reason": "Reputation lookup completed",
+            }
+        },
+    }
+
+    report = generate_html_report(result)
+
+    assert "IP Reputation Intelligence" in report
+    assert "8.8.8.8" in report
+    assert "Success" in report
+    assert "25" in report
+    assert "12" in report
+    assert "Example ISP" in report
+
+
+def test_html_report_handles_missing_reputation():
+    result = {
+        "source_file": "auth.log",
+        "total_lines": 0,
+        "parsed_events": 0,
+        "timeline": [],
+        "findings": [],
+        "ip_summary": {},
+        "risk_assessment": {"score": 0, "level": "low", "reasons": []},
+        "ip_risk_assessment": {},
+    }
+
+    report = generate_html_report(result)
+
+    assert "IP Reputation Intelligence" in report
+    assert "No IP reputation data available" in report
