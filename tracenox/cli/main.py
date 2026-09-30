@@ -133,6 +133,13 @@ def main():
 
         print(generate_text_report(result))
 
+        if result.get("analysis_warning"):
+            print(
+                "\nANALYSIS WARNING: "
+                + result["analysis_warning"],
+                file=sys.stderr,
+            )
+
         if args.ip_reputation:
             print("\nIP Reputation Results")
             print("---------------------")

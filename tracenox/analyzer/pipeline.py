@@ -94,6 +94,17 @@ def _analyze_lines(
         "source_file": source_file,
         "total_lines": len(lines),
         "parsed_events": len(timeline),
+        "analysis_warning": (
+            "Input contains no log lines. No security conclusion can be drawn."
+            if not lines
+            else (
+                "No supported SSH authentication events were parsed. "
+                "The input may be unrelated or malformed; no security "
+                "conclusion can be drawn."
+            )
+            if not timeline
+            else None
+        ),
         "timeline": timeline,
         "findings": findings,
         "ip_summary": ip_summary,
