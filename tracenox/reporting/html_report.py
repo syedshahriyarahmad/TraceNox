@@ -8,6 +8,7 @@ def generate_html_report(result: dict) -> str:
     risk = result.get("risk_assessment", {})
     ip_summary = result.get("ip_summary", {})
     ip_risks = result.get("ip_risk_assessment", {})
+    correlated_ip_risk = result.get("correlated_ip_risk", {})
     ip_reputation = result.get("ip_reputation", {})
     findings = result.get("findings", [])
     timeline = result.get("timeline", [])
@@ -16,6 +17,7 @@ def generate_html_report(result: dict) -> str:
     ip_rows = []
     for source_ip, summary in sorted(ip_summary.items()):
         ip_risk = ip_risks.get(source_ip, {})
+        correlation = correlated_ip_risk.get(source_ip, {})
         ip_rows.append(
             "<tr>"
             f"<td>{escape(str(source_ip))}</td>"
@@ -24,12 +26,15 @@ def generate_html_report(result: dict) -> str:
             f"<td>{summary.get('successful_logins', 0)}</td>"
             f"<td>{escape(str(ip_risk.get('score', 'N/A')))}/100</td>"
             f"<td>{escape(str(ip_risk.get('level', 'unknown')).upper())}</td>"
+            f"<td>{escape(str(correlation.get('score', ip_risk.get('score', 'N/A'))))}/100</td>"
+            f"<td>{escape(str(correlation.get('level', ip_risk.get('level', 'unknown'))).upper())}</td>"
+            f"<td>{escape(str(correlation.get('status', 'local_only')).replace('_', ' ').title())}</td>"
             "</tr>"
         )
 
     if not ip_rows:
         ip_rows.append(
-            "<tr><td colspan='6'>No source IP activity found.</td></tr>"
+            "<tr><td colspan='9'>No source IP activity found.</td></tr>"
         )
 
     reputation_rows = []
@@ -204,12 +209,14 @@ footer {{text-align:center;padding:20px;color:#64748b}}
 <section class="card">
 <h2>IP Investigation Summary</h2>
 <table>
-<thead><tr><th>Source IP</th><th>Events</th><th>Failed</th><th>Successful</th><th>Risk Score</th><th>Risk Level</th></tr></thead>
+<thead><tr><th>Source IP</th><th>Events</th><th>Failed</th><th>Successful</th><th>Local Risk Score</th><th>Local Risk Level</th><th>Correlated Score</th><th>Correlated Level</th><th>Correlation Status</th></tr></thead>
 <tbody>{''.join(ip_rows)}</tbody>
 </table>
 </section>
 
 <section class="card">
+<h2>IP Risk Correlation</h2>
+<p class="note">When provider data is available, the correlated score uses 60% local behavior and 40% AbuseIPDB confidence, with up to 10 additional corroboration points when both signals are elevated. Without usable provider data, the local score is retained. This is a triage heuristic, not proof of malicious activity.</p>
 <h2>IP Reputation Intelligence</h2>
 <p class="note">External reputation results are contextual intelligence, not proof that an address is malicious. Results depend on provider data, lookup status, and availability.</p>
 <table>

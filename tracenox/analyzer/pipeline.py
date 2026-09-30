@@ -10,6 +10,7 @@ from tracenox.analyzer.log_reader import read_journal_lines, read_log_file
 from tracenox.analyzer.ssh_parser import parse_ssh_line
 from tracenox.analyzer.timeline import build_timeline
 from tracenox.detection.risk_scoring import calculate_risk_score
+from tracenox.detection.risk_correlation import correlate_ip_risk
 from tracenox.detection.ssh_detection import (
     detect_failed_login_burst,
     detect_failed_then_success,
@@ -72,6 +73,13 @@ def _analyze_lines(
                 ),
             }
 
+    correlated_ip_risk = {}
+    for source_ip in sorted(source_ips):
+        correlated_ip_risk[source_ip] = correlate_ip_risk(
+            ip_risk_assessment[source_ip],
+            ip_reputation.get(source_ip, {}),
+        )
+
     if source_bytes is None:
         source_bytes = "\n".join(lines).encode("utf-8")
 
@@ -91,6 +99,7 @@ def _analyze_lines(
         "ip_summary": ip_summary,
         "risk_assessment": risk_assessment,
         "ip_risk_assessment": ip_risk_assessment,
+        "correlated_ip_risk": correlated_ip_risk,
         "ip_reputation": ip_reputation,
         "integrity": integrity,
     }

@@ -49,12 +49,21 @@ def generate_text_report(result: dict) -> str:
                 f"Last seen       : {summary['last_seen'] or 'unknown'}",
                 f"IP risk score   : {ip_risk.get('score', 'N/A')}/100",
                 f"IP risk level   : {str(ip_risk.get('level', 'unknown')).upper()}",
-                "IP risk evidence:",
+                f"Correlated risk : {result.get('correlated_ip_risk', {}).get(source_ip, {}).get('score', ip_risk.get('score', 'N/A'))}/100",
+                f"Correlated level: {str(result.get('correlated_ip_risk', {}).get(source_ip, {}).get('level', ip_risk.get('level', 'unknown'))).upper()}",
+                f"Correlation mode: {result.get('correlated_ip_risk', {}).get(source_ip, {}).get('status', 'local_only')}",
+                "Correlation evidence:",
             ])
             reasons = ip_risk.get("reasons", [])
             lines.extend(
                 [f"  - {reason}" for reason in reasons]
                 if reasons else ["  - No significant risk evidence found."]
+            )
+            correlation = result.get("correlated_ip_risk", {}).get(source_ip, {})
+            lines.extend(
+                [f"  - {reason}" for reason in correlation.get("reasons", [])]
+                if correlation.get("reasons")
+                else ["  - No correlation details available."]
             )
 
     lines.extend(["", "INVESTIGATION TIMELINE", "----------------------------------------"])
