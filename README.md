@@ -228,6 +228,15 @@ Features and results should be evaluated against the current source code and tes
 
 GitHub: [@syedshahriyarahmad](https://github.com/syedshahriyarahmad)
 
-## License
+## License and Copyright
 
-Check the repository for license information before redistributing or using TraceNox in another project.
+Copyright (c) 2026 Syed Shahriyar Ahmad. All rights reserved.
+
+This repository is publicly viewable for portfolio and evaluation
+purposes. No general permission is granted to copy, modify,
+redistribute, or commercially use this software without prior
+written permission from the copyright holder, except where
+applicable law provides otherwise.
+
+Public visibility does not mean the software is released under
+an open-source license.
