@@ -2,30 +2,232 @@
 
 **Evidence-Driven Cybersecurity Investigation Toolkit**
 
-TraceNox is a Python-based cybersecurity investigation toolkit designed to analyze real security logs, extract authentication events, detect suspicious activity, and generate clear investigation reports.
+TraceNox is a Python-based cybersecurity investigation toolkit for analyzing Linux SSH authentication logs, identifying suspicious login behavior, correlating IP risk information, and generating structured investigation reports.
 
-## Current Capabilities
+It is designed to help cybersecurity students, analysts, and security practitioners examine authentication activity using log evidence rather than hard-coded demonstration results.
 
-- Read Linux authentication log files
-- Parse SSH authentication events
-- Identify failed SSH login attempts
-- Detect repeated failed logins from the same source IP
-- Preserve raw log evidence
-- Generate human-readable security reports
-- Run from the command line
-- Work with real log files instead of hard-coded results
+## Features
 
-## Current Detection
+- **SSH Log Analysis** — Parse Linux SSH authentication events.
+- **Suspicious Login Detection** — Identify repeated failed logins and successful authentication following repeated failures.
+- **IP Investigation** — Summarize authentication activity by source IP.
+- **Risk Scoring** — Calculate risk scores using observed authentication behavior.
+- **IP Risk Correlation** — Combine local behavioral risk with external reputation data when available.
+- **AbuseIPDB Integration** — Optionally query public IP reputation using an API key.
+- **Investigation Timeline** — Present parsed authentication events chronologically.
+- **Evidence Preservation** — Retain raw log evidence supporting investigation findings.
+- **Multiple Report Formats** — Generate text, JSON, and HTML reports.
+- **Integrity Metadata** — Generate SHA-256 integrity information for the analyzed source.
+- **Systemd Journal Analysis** — Analyze journal entries for a selected unit and time range.
+- **Hash Verification** — Verify a file against an expected SHA-256 hash.
 
-### SSH Failed Login Burst
+## Detection Capabilities
 
-TraceNox identifies repeated failed SSH authentication attempts from the same source IP.
+### 1. SSH Failed Login Burst
 
-Example:
+Identifies repeated failed SSH authentication attempts from the same source IP.
+
+### 2. Failed Attempts Followed by Successful Login
+
+Detects a successful authentication event following repeated failed login attempts and associates relevant log evidence with the finding.
+
+### 3. IP-Based Risk Assessment
+
+Summarizes failed and successful authentication activity for each source IP and calculates a local behavioral risk score.
+
+### 4. Correlated IP Risk
+
+When external reputation information is available, TraceNox combines local behavioral risk and external abuse confidence into a correlated score. When reputation data is unavailable or not requested, it retains the local score and indicates that the result is local-only.
+
+The correlated score uses a 60% local-risk and 40% external-reputation weighting, with an additional corroboration adjustment when both risk indicators meet the configured thresholds.
+
+**Important:** A risk score is an investigation aid, not proof that an IP address is malicious. Interpret results in context and validate findings against the original evidence.
+
+## Requirements
+
+- Linux environment (Kali Linux recommended)
+- Python 3.13 or compatible version
+- Git
+- `pytest` for running the test suite
+- An AbuseIPDB API key only if external IP reputation lookup is required
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/syedshahriyarahmad/TraceNox.git
+cd TraceNox
+```
+
+Create and activate a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Install the test dependency:
+
+```bash
+python -m pip install pytest
+```
+
+If the project provides a dependency file, install its dependencies as well:
+
+```bash
+if [ -f requirements.txt ]; then
+    python -m pip install -r requirements.txt
+fi
+```
+
+## Usage
+
+### Analyze an authentication log
+
+```bash
+python -m tracenox.cli.main /var/log/auth.log
+```
+
+The log file must be readable by your user. On some Linux distributions, authentication logs may be stored at `/var/log/secure` instead.
+
+### Generate JSON and HTML reports
+
+```bash
+python -m tracenox.cli.main /var/log/auth.log \
+  --json reports/investigation.json \
+  --html reports/investigation.html
+```
+
+TraceNox prints a human-readable report in the terminal and saves the requested output files.
+
+### Analyze a sample log
+
+From the repository directory:
+
+```bash
+python -m tracenox.cli.main test_auth.log \
+  --json reports/investigation.json \
+  --html reports/investigation.html
+```
+
+The included sample log is for demonstration and testing. Its events should not be interpreted as evidence of a real attack.
+
+### Analyze the systemd journal
+
+```bash
+python -m tracenox.cli.main --journal
+```
+
+Specify a unit and time range when needed:
+
+```bash
+python -m tracenox.cli.main --journal --unit ssh --since today
+```
+
+Journal analysis requires the appropriate systemd environment and permissions.
+
+## Optional: IP Reputation Lookup
+
+TraceNox supports optional external reputation lookups through AbuseIPDB. Configure your API key in the environment rather than hard-coding it into source files:
+
+```bash
+export ABUSEIPDB_API_KEY="YOUR_API_KEY"
+```
+
+Run the analysis with reputation lookup enabled:
+
+```bash
+python -m tracenox.cli.main /var/log/auth.log \
+  --ip-reputation \
+  --json reports/investigation.json \
+  --html reports/investigation.html
+```
+
+External lookups depend on network connectivity, API availability, API limits, and whether the IP is eligible for lookup. Private and local IP addresses are not equivalent to publicly reported addresses. Without usable external reputation data, TraceNox reports local-only risk.
+
+## File Integrity Verification
+
+TraceNox supports standalone SHA-256 verification.
+
+Calculate a file's SHA-256 hash:
+
+```bash
+sha256sum test_auth.log
+```
+
+Pass the expected hash to TraceNox:
+
+```bash
+python -m tracenox.cli.main \
+  --verify-hash test_auth.log \
+  --expected-sha256 YOUR_64_CHARACTER_SHA256_HASH
+```
+
+Use a trusted expected hash. A hash comparison can detect changes relative to that expected value; it does not independently prove the authenticity of the original file.
+
+## Running Tests
+
+From the repository root with the virtual environment activated:
+
+```bash
+pytest -q
+```
+
+The test suite covers parsing, detection, risk scoring, reporting, and other implemented functionality.
+
+## Project Structure
 
 ```text
-Source IP      : 192.168.1.50
-Failed attempts: 5
-Threshold      : 5
-Severity       : HIGH
+TraceNox/
+├── tracenox/
+│   ├── analyzer/
+│   │   ├── evidence.py
+│   │   ├── integrity.py
+│   │   ├── ip_reputation.py
+│   │   ├── ip_summary.py
+│   │   ├── log_reader.py
+│   │   ├── pipeline.py
+│   │   ├── ssh_parser.py
+│   │   └── timeline.py
+│   ├── detection/
+│   │   ├── risk_correlation.py
+│   │   ├── risk_scoring.py
+│   │   └── ssh_detection.py
+│   ├── reporting/
+│   │   ├── html_report.py
+│   │   └── text_report.py
+│   └── cli/
+│       └── main.py
+├── tests/
+├── reports/
+├── test_auth.log
+├── README.md
+└── .gitignore
+```
 
+This is a simplified overview; the repository may contain additional files.
+
+## Responsible Use
+
+- Analyze logs you own or are authorized to investigate.
+- Protect authentication logs because they may contain sensitive operational information.
+- Review findings against original log evidence before taking action.
+- Treat automated scores and external reputation results as supporting indicators rather than definitive attribution.
+- Avoid publishing reports containing private IP details, usernames, or other sensitive information without appropriate review.
+
+## Current Project Status
+
+TraceNox includes SSH authentication analysis, detection rules, per-IP risk assessment, optional external IP reputation enrichment, risk correlation, integrity metadata, and text/JSON/HTML reporting.
+
+Features and results should be evaluated against the current source code and test suite. No claim of complete enterprise-grade monitoring or guaranteed attack detection is made.
+
+## Author
+
+**Syed Shahriyar Ahmad**
+
+GitHub: [@syedshahriyarahmad](https://github.com/syedshahriyarahmad)
+
+## License
+
+Check the repository for license information before redistributing or using TraceNox in another project.
