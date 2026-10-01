@@ -7,6 +7,7 @@ name = "tracenox"
 version = "0.3.0"
 description = "Evidence-Driven Cybersecurity Investigation Toolkit"
 requires-python = ">=3.10"
+dependencies = ["reportlab>=4.0", "flask>=3.0"]
 
 [project.scripts]
 tracenox-web = "tracenox.webscan:main"
@@ -15,3 +16,4 @@ tracenox = "tracenox.cli.main:main"
 
 [tool.setuptools.packages.find]
 include = ["tracenox*"]
+tracenox-report-ui = "tracenox.webapp:main"
