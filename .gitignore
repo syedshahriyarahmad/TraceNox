@@ -7,3 +7,11 @@ __pycache__/
 .DS_Store
 reports/
 tracenox.egg-info/
+
+# Locally generated website assessment reports
+*-report.html
+*-report.json
+*-report.pdf
+website-report.html
+website-report.json
+website-report.pdf

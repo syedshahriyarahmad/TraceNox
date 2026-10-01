@@ -273,3 +273,20 @@ tracenox --verify-hash /var/log/auth.log --expected-sha256 YOUR_64_CHARACTER_SHA
 An empty or unrecognized log is not proof that a system is secure.
 Review analysis warnings and validate that the input contains the expected
 log format before drawing conclusions.
+
+## Website assessment (v0.3.0)
+
+Use only on public websites you own or are explicitly authorized to assess.
+This module performs low-impact DNS, HTTP-header, redirect, cookie-attribute,
+and TLS certificate checks. It does not perform a full penetration test.
+
+```bash
+python -m pip install -e .
+tracenox-web --help
+tracenox-web https://example.com --json website-report.json --html website-report.html
+```
+
+The scanner blocks non-public IP addresses and rejects URLs containing
+embedded credentials. DNS protections are best-effort and do not eliminate
+all DNS rebinding risks; run only against approved targets. A missing security
+header is an observation, not proof of a vulnerability.
