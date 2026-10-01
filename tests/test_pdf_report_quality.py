@@ -1,32 +1,36 @@
 from tracenox.pdf_report import create_pdf_report
 
 
-def test_pdf_starts_with_valid_pdf_header():
-    result = {
+def test_pdf_has_valid_header():
+    pdf = create_pdf_report({
         "target": "https://example.com",
         "risk_level": "LOW",
         "findings": [],
-    }
-    pdf = create_pdf_report(result)
+    })
     assert isinstance(pdf, bytes)
     assert pdf.startswith(b"%PDF-")
     assert len(pdf) > 1000
 
 
-def test_pdf_handles_findings_and_nested_data():
+def test_pdf_handles_multiple_severities():
     result = {
         "target": "https://example.com",
         "findings": [
             {
                 "severity": "HIGH",
-                "title": "Security header missing",
+                "title": "Security header review",
                 "description": "A security header was not observed.",
-                "recommendation": "Review and configure the appropriate header.",
+                "recommendation": "Review the server configuration.",
             },
             {
                 "severity": "LOW",
                 "title": "Cookie review",
                 "details": {"secure": False, "httponly": True},
+            },
+            {
+                "severity": "INFO",
+                "title": "Informational check",
+                "description": "No additional details.",
             },
         ],
         "headers": {
@@ -39,22 +43,20 @@ def test_pdf_handles_findings_and_nested_data():
     assert len(pdf) > 1000
 
 
-def test_pdf_handles_empty_and_unexpected_result_shapes():
+def test_pdf_handles_empty_and_unexpected_results():
     for result in ({}, {"findings": []}, {"scan_result": ["item", 123, None]}):
         pdf = create_pdf_report(result)
         assert pdf.startswith(b"%PDF-")
 
 
-def test_pdf_handles_special_characters_in_untrusted_text():
+def test_pdf_handles_special_characters():
     result = {
         "target": 'https://example.com/?q=<script>alert("x")</script>&a=1',
-        "findings": [
-            {
-                "severity": "INFO",
-                "title": "<script>not executable</script>",
-                "description": "Text with & ampersands, <tags>, and quotes.",
-            }
-        ],
+        "findings": [{
+            "severity": "INFO",
+            "title": "<script>not executable</script>",
+            "description": "Text with & ampersands, <tags>, and quotes.",
+        }],
     }
     pdf = create_pdf_report(result)
     assert pdf.startswith(b"%PDF-")
