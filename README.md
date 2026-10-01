@@ -240,3 +240,36 @@ applicable law provides otherwise.
 
 Public visibility does not mean the software is released under
 an open-source license.
+
+
+## Quick start
+
+Install TraceNox in a Python virtual environment:
+
+```bash
+python -m pip install -e .
+tracenox --help
+```
+
+Analyze an SSH authentication log:
+
+```bash
+tracenox /var/log/auth.log
+```
+
+Generate JSON and HTML reports:
+
+```bash
+tracenox /var/log/auth.log --json report.json --html report.html
+```
+
+Verify a file's SHA-256 digest:
+
+```bash
+sha256sum /var/log/auth.log
+tracenox --verify-hash /var/log/auth.log --expected-sha256 YOUR_64_CHARACTER_SHA256
+```
+
+An empty or unrecognized log is not proof that a system is secure.
+Review analysis warnings and validate that the input contains the expected
+log format before drawing conclusions.
