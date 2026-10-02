@@ -290,3 +290,52 @@ The scanner blocks non-public IP addresses and rejects URLs containing
 embedded credentials. DNS protections are best-effort and do not eliminate
 all DNS rebinding risks; run only against approved targets. A missing security
 header is an observation, not proof of a vulnerability.
+
+## Current Web Dashboard and PDF Reports (v0.4.1)
+
+TraceNox includes a local Flask dashboard for low-impact website security
+configuration checks and PDF report generation.
+
+### Start the dashboard
+
+Activate the project's virtual environment and start the application:
+
+```bash
+cd ~/TraceNox
+source .venv/bin/activate
+python -m tracenox.webapp
+```
+
+Open http://127.0.0.1:5050 in your browser.
+
+### Website scan workflow
+
+1. Choose a website you own or have explicit permission to assess.
+2. Submit its URL through the local dashboard.
+3. Review the scan findings and severity levels.
+4. Examine the evidence observed and recommended remediation.
+5. Download and review the PDF report.
+6. Validate findings in context before changing any configuration.
+
+### PDF report contents
+
+The report presents findings in separate columns for:
+
+- Severity
+- Finding
+- Evidence observed
+- Recommended remediation
+
+It also includes a summary and technical scan details. Automated configuration
+checks are observations, not proof that a vulnerability is exploitable.
+Validate findings before taking action.
+
+### Web scanner limitations
+
+- Checks cover only the behavior and configuration examined by the scanner.
+- Results may require manual verification.
+- A scan cannot guarantee that a website is secure or vulnerable.
+- Use the scanner only on systems you are authorized to assess.
+
+The Flask development server is intended for local testing, not public
+production deployment.
