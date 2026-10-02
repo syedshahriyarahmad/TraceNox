@@ -339,3 +339,15 @@ Validate findings before taking action.
 
 The Flask development server is intended for local testing, not public
 production deployment.
+
+## Dashboard Preview
+
+![TraceNox Dashboard](docs/screenshots/dashboard.png)
+
+## Security Scan Results
+
+![TraceNox Scan Results](docs/screenshots/scan-results.png)
+
+## Sample PDF Report
+
+[View Sample Security Report](docs/sample-reports/tracenox-sample-report.pdf)
