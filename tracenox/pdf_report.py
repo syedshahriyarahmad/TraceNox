@@ -304,52 +304,110 @@ def create_pdf_report(result):
     story.append(summary)
 
     story.append(Paragraph("Detailed findings", heading_style))
+    story.append(Paragraph(
+        "Findings are observations from limited, low-impact checks. "
+        "Validate each item in context before treating it as an exploitable "
+        "vulnerability or applying a configuration change.",
+        body_style,
+    ))
+
     if findings:
         finding_rows = [[
             Paragraph("<b>Severity</b>", cell_style),
             Paragraph("<b>Finding</b>", cell_style),
-            Paragraph("<b>Details</b>", cell_style),
+            Paragraph("<b>Evidence observed</b>", cell_style),
+            Paragraph("<b>Recommended remediation</b>", cell_style),
         ]]
+
         for index, item in enumerate(findings[:100], 1):
             if isinstance(item, Mapping):
-                severity = _lookup(item, "severity", "risk", "level", default="INFO")
-                name = _lookup(item, "title", "name", "check", "finding", "issue", default=f"Finding {index}")
-                details = _lookup(item, "description", "details", "message", "evidence", "recommendation", default="No additional details provided.")
-                if isinstance(details, (Mapping, list)):
-                    details = json.dumps(details, ensure_ascii=False, default=str)
+                severity = _lookup(
+                    item, "severity", "risk", "level", default="INFO"
+                )
+                name = _lookup(
+                    item, "title", "name", "check", "finding", "issue",
+                    default=f"Finding {index}",
+                )
+                evidence = _lookup(
+                    item, "evidence", "proof", "observed",
+                    default=None,
+                )
+                if evidence is None:
+                    evidence = _lookup(
+                        item, "description", "details", "message",
+                        default="No evidence was supplied.",
+                    )
+                recommendation = _lookup(
+                    item, "recommendation", "remediation", "fix",
+                    "mitigation",
+                    default=(
+                        "Manually validate this observation and consult "
+                        "the relevant platform or vendor documentation."
+                    ),
+                )
             else:
-                severity, name, details = "INFO", f"Finding {index}", item
+                severity = "INFO"
+                name = f"Finding {index}"
+                evidence = item
+                recommendation = (
+                    "Review this observation manually; structured "
+                    "remediation guidance was not supplied."
+                )
+
+            if isinstance(evidence, (Mapping, list, tuple)):
+                evidence = json.dumps(
+                    evidence, ensure_ascii=False, default=str
+                )
+            if isinstance(recommendation, (Mapping, list, tuple)):
+                recommendation = json.dumps(
+                    recommendation, ensure_ascii=False, default=str
+                )
+
             finding_rows.append([
-                Paragraph(f'<font color="{_severity_color(severity).hexval()}"><b>{_safe_text(severity, 80)}</b></font>', cell_style),
+                Paragraph(
+                    f'<font color="{_severity_color(severity).hexval()}">'
+                    f'<b>{_safe_text(severity, 80)}</b></font>',
+                    cell_style,
+                ),
                 Paragraph(_safe_text(name, 300), cell_style),
-                Paragraph(_safe_text(details, 1200), cell_style),
+                Paragraph(_safe_text(evidence, 1200), cell_style),
+                Paragraph(_safe_text(recommendation, 1200), cell_style),
             ])
+
         finding_table = Table(
             finding_rows,
-            colWidths=[24 * mm, 48 * mm, doc.width - 72 * mm],
+            colWidths=[
+                21 * mm,
+                39 * mm,
+                54 * mm,
+                doc.width - 114 * mm,
+            ],
             repeatRows=1,
+            splitByRow=1,
         )
         finding_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), LIGHT),
             ("BOX", (0, 0), (-1, -1), 0.6, BORDER),
             ("INNERGRID", (0, 0), (-1, -1), 0.4, BORDER),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
             ("TOPPADDING", (0, 0), (-1, -1), 6),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ]))
         story.append(finding_table)
+
         if len(findings) > 100:
             story.append(Paragraph(
-                f"Note: {len(findings) - 100} additional findings were omitted from this PDF for readability.",
-                small_style
+                f"Note: {len(findings) - 100} additional findings "
+                "were omitted from this PDF for readability.",
+                small_style,
             ))
     else:
         story.append(Paragraph(
             "No structured findings list was provided by the scanner. "
-            "Review the technical details below; absence of listed findings does not guarantee a website is secure.",
-            body_style
+            "Absence of listed findings does not guarantee a website is secure.",
+            body_style,
         ))
 
     story.append(Paragraph("Technical scan details", heading_style))
