@@ -1,7 +1,11 @@
 import argparse
 import sys
 
-from tracenox.analyzer.integrity import verify_file_sha256
+from tracenox.analyzer.integrity import (
+    create_file_integrity_baseline,
+    scan_file_integrity,
+    verify_file_sha256,
+)
 from tracenox.analyzer.pipeline import analyze_journal, analyze_log_file
 from tracenox.reporting.html_report import save_html_report
 from tracenox.reporting.json_report import save_json_report
@@ -66,22 +70,47 @@ def main():
         metavar="HASH",
         help="Expected 64-character SHA-256 hash for --verify-hash",
     )
+    parser.add_argument(
+        "--fim-create-baseline",
+        metavar="DIRECTORY",
+        help="Create a SHA-256 file integrity baseline for a directory",
+    )
+    parser.add_argument(
+        "--fim-baseline",
+        metavar="BASELINE",
+        help="Path to an existing TraceNox FIM baseline JSON file",
+    )
+    parser.add_argument(
+        "--fim-scan",
+        metavar="DIRECTORY",
+        help="Scan a directory against a TraceNox FIM baseline",
+    )
+    parser.add_argument(
+        "--fim-output",
+        metavar="OUTPUT",
+        help="Save FIM results as JSON",
+    )
 
     args = parser.parse_args()
 
     if args.verify_hash:
         if not args.expected_sha256:
             parser.error("--verify-hash requires --expected-sha256.")
+
         if (
             args.log_file
             or args.journal
             or args.json_output
             or args.html_output
             or args.ip_reputation
+            or args.fim_create_baseline
+            or args.fim_baseline
+            or args.fim_scan
+            or args.fim_output
         ):
             parser.error(
                 "--verify-hash is a standalone operation; do not combine it "
-                "with log analysis or report output options."
+                "with log analysis, FIM, or report output options."
             )
 
         try:
@@ -97,8 +126,12 @@ def main():
                 print("Result            : File bytes match the expected SHA-256.")
             else:
                 print("Verification      : MISMATCH")
-                print("Result            : File bytes do not match the expected SHA-256.")
+                print(
+                    "Result            : File bytes do not match "
+                    "the expected SHA-256."
+                )
                 sys.exit(1)
+
             return
         except (FileNotFoundError, ValueError) as error:
             print(f"Error: {error}", file=sys.stderr)
@@ -110,12 +143,107 @@ def main():
     if args.expected_sha256:
         parser.error("--expected-sha256 can only be used with --verify-hash.")
 
+    if args.fim_create_baseline:
+        if (
+            args.log_file
+            or args.journal
+            or args.json_output
+            or args.html_output
+            or args.ip_reputation
+            or args.fim_baseline
+            or args.fim_scan
+        ):
+            parser.error(
+                "--fim-create-baseline is a standalone FIM operation."
+            )
+
+        try:
+            output = args.fim_output or "tracenox-fim-baseline.json"
+            baseline = create_file_integrity_baseline(
+                args.fim_create_baseline,
+                output,
+            )
+
+            print(f"FIM baseline created: {output}")
+            print(f"Root directory      : {baseline['root_directory']}")
+            print(f"Files recorded      : {baseline['file_count']}")
+            print(f"Hash algorithm      : {baseline['hash_algorithm']}")
+            return
+        except (FileNotFoundError, ValueError) as error:
+            print(f"Error: {error}", file=sys.stderr)
+            sys.exit(1)
+        except OSError as error:
+            print(f"File or system error: {error}", file=sys.stderr)
+            sys.exit(1)
+
+    if args.fim_scan:
+        if not args.fim_baseline:
+            parser.error("--fim-scan requires --fim-baseline.")
+
+        if (
+            args.log_file
+            or args.journal
+            or args.json_output
+            or args.html_output
+            or args.ip_reputation
+            or args.fim_create_baseline
+        ):
+            parser.error("--fim-scan is a standalone FIM operation.")
+
+        try:
+            result = scan_file_integrity(
+                args.fim_scan,
+                args.fim_baseline,
+            )
+
+            summary = result["summary"]
+
+            print("TraceNox File Integrity Monitoring")
+            print("----------------------------------")
+            print(f"Root directory : {result['root_directory']}")
+            print(f"Baseline       : {result['baseline_file']}")
+            print(f"Status         : {result['status']}")
+            print(f"Unchanged      : {summary['unchanged']}")
+            print(f"Modified       : {summary['modified']}")
+            print(f"Added          : {summary['added']}")
+            print(f"Deleted        : {summary['deleted']}")
+
+            for category in ("modified", "added", "deleted"):
+                paths = result["findings"][category]
+                if paths:
+                    print(f"\n{category.upper()}")
+                    print("-" * len(category))
+                    for path in paths:
+                        print(f"- {path}")
+
+            if args.fim_output:
+                save_json_report(result, args.fim_output)
+                print(f"\nFIM JSON report saved to: {args.fim_output}")
+
+            if result["status"] != "CLEAN":
+                sys.exit(1)
+
+            return
+        except (FileNotFoundError, ValueError) as error:
+            print(f"Error: {error}", file=sys.stderr)
+            sys.exit(1)
+        except OSError as error:
+            print(f"File or system error: {error}", file=sys.stderr)
+            sys.exit(1)
+
+    if args.fim_baseline or args.fim_output:
+        parser.error(
+            "--fim-baseline and --fim-output can only be used with "
+            "--fim-scan or --fim-create-baseline."
+        )
+
     if args.journal and args.log_file:
         parser.error("Use either --journal or a log_file, not both.")
 
     if not args.journal and not args.log_file:
         parser.error(
-            "Provide a log_file, use --journal, or use --verify-hash."
+            "Provide a log_file, use --journal, --verify-hash, "
+            "--fim-create-baseline, or --fim-scan."
         )
 
     try:
