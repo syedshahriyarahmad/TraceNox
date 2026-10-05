@@ -17,10 +17,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
@@ -33,6 +33,17 @@ jobs:
             python -m pip install -r requirements.txt
           fi
           python -m pip install -e .
+
+      - name: Add Python scripts directory to PATH
+        run: |
+          PYTHON_SCRIPTS_DIR="$(python -c 'import sysconfig; print(sysconfig.get_path("scripts"))')"
+          echo "Python scripts directory: $PYTHON_SCRIPTS_DIR"
+          echo "$PYTHON_SCRIPTS_DIR" >> "$GITHUB_PATH"
+
+      - name: Verify TraceNox CLI installation
+        run: |
+          which tracenox
+          tracenox --help
 
       - name: Run test suite
         run: python -m pytest -q
