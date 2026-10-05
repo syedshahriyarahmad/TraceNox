@@ -1,10 +1,23 @@
 # TraceNox
 
+[![TraceNox Tests](https://github.com/syedshahriyarahmad/TraceNox/actions/workflows/tests.yml/badge.svg)](https://github.com/syedshahriyarahmad/TraceNox/actions/workflows/tests.yml)
+
 **Evidence-Driven Cybersecurity Investigation Toolkit**
 
 TraceNox is a Python-based cybersecurity investigation toolkit for analyzing Linux SSH authentication logs, identifying suspicious login behavior, correlating IP risk information, and generating structured investigation reports.
 
 It is designed to help cybersecurity students, analysts, and security practitioners examine authentication activity using log evidence rather than hard-coded demonstration results.
+
+## Portfolio Highlights
+
+TraceNox demonstrates practical cybersecurity engineering through:
+
+- **Evidence-driven analysis** of Linux SSH authentication activity.
+- **Behavior-based detection** for suspicious authentication patterns.
+- **Risk correlation** using local authentication behavior and optional external reputation data.
+- **Investigation reporting** in terminal, JSON, HTML, and PDF formats.
+- **Low-impact web security assessment** with a local dashboard and evidence-based findings.
+- **Automated testing with GitHub Actions** to continuously validate the project.
 
 ## Features
 
