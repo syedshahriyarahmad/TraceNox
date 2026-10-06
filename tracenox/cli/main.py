@@ -11,6 +11,7 @@ from tracenox.reporting.html_report import save_html_report
 from tracenox.reporting.json_report import save_json_report
 from tracenox.reporting.text_report import generate_text_report
 from tracenox.hardening import run_hardening_audit
+from tracenox.security_score import calculate_security_score, format_security_score
 
 
 def main():
@@ -61,6 +62,12 @@ def main():
             "Requires ABUSEIPDB_API_KEY."
         ),
     )
+    parser.add_argument(
+        "--security-score",
+        action="store_true",
+        help="Calculate unified TraceNox security score",
+    )
+
     parser.add_argument(
         "--hardening",
         action="store_true",
@@ -149,6 +156,34 @@ def main():
 
     if args.expected_sha256:
         parser.error("--expected-sha256 can only be used with --verify-hash.")
+
+    if args.security_score:
+        forbidden = (
+            args.log_file
+            or args.journal
+            or args.json_output
+            or args.html_output
+            or args.ip_reputation
+            or args.verify_hash
+            or args.expected_sha256
+            or args.fim_create_baseline
+            or args.fim_baseline
+            or args.fim_scan
+            or args.fim_output
+        )
+
+        if forbidden:
+            parser.error("--security-score is a standalone operation.")
+
+        hardening_result = run_hardening_audit()
+
+        result = calculate_security_score(
+            hardening=hardening_result,
+        )
+
+        print(format_security_score(result))
+
+        return
 
     if args.hardening:
         forbidden = (

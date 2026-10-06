@@ -161,3 +161,32 @@ def test_cli_hardening_runs():
     assert result.returncode == 0
     assert "TraceNox Linux Security Hardening Audit" in result.stdout
     assert "Security score" in result.stdout
+
+
+def test_cli_security_score_help():
+    import subprocess
+
+    result = subprocess.run(
+        ["tracenox", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "--security-score" in result.stdout
+
+
+def test_cli_security_score_runs():
+    import subprocess
+
+    result = subprocess.run(
+        ["tracenox", "--security-score"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "TraceNox Unified Security Score" in result.stdout
+    assert "Overall score" in result.stdout
