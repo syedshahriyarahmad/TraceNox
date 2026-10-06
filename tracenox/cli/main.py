@@ -12,6 +12,7 @@ from tracenox.reporting.json_report import save_json_report
 from tracenox.reporting.text_report import generate_text_report
 from tracenox.hardening import run_hardening_audit
 from tracenox.security_score import calculate_security_score, format_security_score
+from tracenox.webscan import scan_website
 
 
 def main():
@@ -66,6 +67,14 @@ def main():
         "--security-score",
         action="store_true",
         help="Calculate unified TraceNox security score",
+    )
+    parser.add_argument(
+        "--security-score-web",
+        metavar="URL",
+        help=(
+            "Include an authorized public website assessment "
+            "in the unified security score"
+        ),
     )
 
     parser.add_argument(
@@ -158,33 +167,84 @@ def main():
         parser.error("--expected-sha256 can only be used with --verify-hash.")
 
     if args.security_score:
-        forbidden = (
-            args.log_file
-            or args.journal
-            or args.json_output
-            or args.html_output
-            or args.ip_reputation
-            or args.verify_hash
-            or args.expected_sha256
-            or args.fim_create_baseline
-            or args.fim_baseline
-            or args.fim_scan
-            or args.fim_output
-        )
+        if args.verify_hash or args.expected_sha256:
+            parser.error(
+                "--security-score cannot be combined "
+                "with hash verification."
+            )
 
-        if forbidden:
-            parser.error("--security-score is a standalone operation.")
+        if args.fim_create_baseline or args.fim_output:
+            parser.error(
+                "--security-score cannot create an FIM baseline "
+                "or write --fim-output."
+            )
+
+        if args.fim_scan and not args.fim_baseline:
+            parser.error(
+                "--security-score with --fim-scan "
+                "requires --fim-baseline."
+            )
+
+        if args.journal and args.log_file:
+            parser.error(
+                "Use either --journal or a log_file, not both."
+            )
 
         hardening_result = run_hardening_audit()
 
+        log_result = None
+        fim_result = None
+        web_result = None
+
+        if args.journal:
+            log_result = analyze_journal(
+                unit=args.unit,
+                since=args.since,
+                enable_ip_reputation=args.ip_reputation,
+            )
+
+        elif args.log_file:
+            log_result = analyze_log_file(
+                args.log_file,
+                enable_ip_reputation=args.ip_reputation,
+            )
+
+        if args.fim_scan:
+            fim_result = scan_file_integrity(
+                args.fim_scan,
+                args.fim_baseline,
+            )
+
+        if args.security_score_web:
+            try:
+                web_result = scan_website(
+                    args.security_score_web
+                )
+            except (ValueError, OSError) as error:
+                print(
+                    f"Web assessment error: {error}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
         result = calculate_security_score(
             hardening=hardening_result,
+            fim=fim_result,
+            webscan=web_result,
+            logs=log_result,
+            ip_reputation=log_result,
         )
 
         print(format_security_score(result))
 
-        return
+        if log_result and log_result.get("analysis_warning"):
+            print(
+                "\nANALYSIS WARNING: "
+                + log_result["analysis_warning"],
+                file=sys.stderr,
+            )
 
+        return
     if args.hardening:
         forbidden = (
             args.log_file

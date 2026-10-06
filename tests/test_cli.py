@@ -190,3 +190,68 @@ def test_cli_security_score_runs():
     assert result.returncode == 0
     assert "TraceNox Unified Security Score" in result.stdout
     assert "Overall score" in result.stdout
+
+
+def test_cli_security_score_accepts_log_file():
+    result = subprocess.run(
+        [
+            "tracenox",
+            "test_auth.log",
+            "--security-score",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "TraceNox Unified Security Score" in result.stdout
+    assert "hardening" in result.stdout
+    assert "logs" in result.stdout
+    assert "ip_reputation" in result.stdout
+
+
+def test_cli_security_score_accepts_fim(tmp_path):
+    monitored = tmp_path / "monitored"
+    monitored.mkdir()
+
+    sample = monitored / "important.conf"
+    sample.write_text(
+        "secure=true\n",
+        encoding="utf-8",
+    )
+
+    baseline = tmp_path / "baseline.json"
+
+    create = subprocess.run(
+        [
+            "tracenox",
+            "--fim-create-baseline",
+            str(monitored),
+            "--fim-output",
+            str(baseline),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert create.returncode == 0
+
+    result = subprocess.run(
+        [
+            "tracenox",
+            "--security-score",
+            "--fim-scan",
+            str(monitored),
+            "--fim-baseline",
+            str(baseline),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "fim" in result.stdout
+    assert "hardening" in result.stdout
