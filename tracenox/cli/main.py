@@ -10,6 +10,7 @@ from tracenox.analyzer.pipeline import analyze_journal, analyze_log_file
 from tracenox.reporting.html_report import save_html_report
 from tracenox.reporting.json_report import save_json_report
 from tracenox.reporting.text_report import generate_text_report
+from tracenox.hardening import run_hardening_audit
 
 
 def main():
@@ -60,6 +61,12 @@ def main():
             "Requires ABUSEIPDB_API_KEY."
         ),
     )
+    parser.add_argument(
+        "--hardening",
+        action="store_true",
+        help="Run read-only Linux security hardening checks",
+    )
+
     parser.add_argument(
         "--verify-hash",
         metavar="FILE",
@@ -142,6 +149,49 @@ def main():
 
     if args.expected_sha256:
         parser.error("--expected-sha256 can only be used with --verify-hash.")
+
+    if args.hardening:
+        forbidden = (
+            args.log_file
+            or args.journal
+            or args.json_output
+            or args.html_output
+            or args.ip_reputation
+            or args.verify_hash
+            or args.expected_sha256
+            or args.fim_create_baseline
+            or args.fim_baseline
+            or args.fim_scan
+            or args.fim_output
+        )
+
+        if forbidden:
+            parser.error("--hardening is a standalone operation.")
+
+        result = run_hardening_audit()
+
+        print("TraceNox Linux Security Hardening Audit")
+        print("---------------------------------------")
+        print(f"Status         : {result['status']}")
+        print(f"Security score : {result['security_score']}/100")
+
+        summary = result["summary"]
+
+        print(
+            f"Checks         : {summary['total']} | "
+            f"PASS={summary['PASS']} "
+            f"WARNING={summary['WARNING']} "
+            f"FAIL={summary['FAIL']} "
+            f"UNKNOWN={summary['UNKNOWN']}"
+        )
+
+        for check in result["checks"]:
+            print()
+            print(f"[{check['status']}] {check['title']}")
+            print(f"  Detail         : {check['detail']}")
+            print(f"  Recommendation : {check['recommendation']}")
+
+        return
 
     if args.fim_create_baseline:
         if (

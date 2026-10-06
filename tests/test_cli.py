@@ -132,3 +132,32 @@ def test_existing_verify_hash_cli_still_works(tmp_path):
 
     assert result.returncode == 0
     assert "Verification      : MATCH" in result.stdout
+
+
+def test_cli_hardening_help():
+    import subprocess
+
+    result = subprocess.run(
+        ["tracenox", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "--hardening" in result.stdout
+
+
+def test_cli_hardening_runs():
+    import subprocess
+
+    result = subprocess.run(
+        ["tracenox", "--hardening"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "TraceNox Linux Security Hardening Audit" in result.stdout
+    assert "Security score" in result.stdout
