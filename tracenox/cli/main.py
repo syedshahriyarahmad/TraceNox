@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+from ..history import compare_snapshot_files, format_comparison, save_comparison
 from tracenox.analyzer.integrity import (
     create_file_integrity_baseline,
     scan_file_integrity,
@@ -28,6 +29,19 @@ def main():
         nargs="?",
         help="Path to an SSH authentication log file",
     )
+
+    parser.add_argument(
+        "--history-compare",
+        nargs=2,
+        metavar=("PREVIOUS", "CURRENT"),
+        help="compare two historical security-score snapshots",
+    )
+    parser.add_argument(
+        "--history-output",
+        metavar="OUTPUT",
+        help="save historical comparison JSON",
+    )
+
     parser.add_argument(
         "--journal",
         action="store_true",
@@ -115,6 +129,23 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if args.history_compare:
+        previous, current = args.history_compare
+
+        try:
+            comparison = compare_snapshot_files(previous, current)
+        except (OSError, ValueError) as exc:
+            parser.error(f"history comparison failed: {exc}")
+
+        print(format_comparison(comparison))
+
+        if args.history_output:
+            save_comparison(comparison, args.history_output)
+            print(f"\nComparison JSON saved: {args.history_output}")
+
+        return 0
+
 
     if args.verify_hash:
         if not args.expected_sha256:
