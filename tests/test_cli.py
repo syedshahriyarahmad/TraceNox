@@ -192,11 +192,18 @@ def test_cli_security_score_runs():
     assert "Overall score" in result.stdout
 
 
-def test_cli_security_score_accepts_log_file():
+def test_cli_security_score_accepts_log_file(tmp_path):
+    log_file = tmp_path / "test_auth.log"
+    log_file.write_text(
+        "Failed password for invalid user admin from 192.0.2.10 "
+        "port 54321 ssh2\\n",
+        encoding="utf-8",
+    )
+
     result = subprocess.run(
         [
             "tracenox",
-            "test_auth.log",
+            str(log_file),
             "--security-score",
         ],
         capture_output=True,
