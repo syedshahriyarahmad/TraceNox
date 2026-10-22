@@ -15,3 +15,7 @@ tracenox.egg-info/
 website-report.html
 website-report.json
 website-report.pdf
+
+# Keep the sanitized sample log used by README and tests
+tracenox/*.backup-*
+tracenox/*.history-backup-*
