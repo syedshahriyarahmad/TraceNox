@@ -1,5 +1,19 @@
 # TraceNox
 
+**Evidence-driven cybersecurity investigation toolkit for Linux SSH logs.**
+
+> Analyze auth.log → detect brute-force patterns → score IP risk → generate investigation reports.
+
+- 🔍 Parse Linux SSH authentication logs and detect suspicious login behavior
+- 📊 Score source-IP risk using local behavior + optional AbuseIPDB reputation
+- 📄 Generate investigation reports in terminal, JSON, HTML, and PDF
+- 🖥️ Local Flask dashboard for low-impact website security checks
+
+```bash
+git clone https://github.com/syedshahriyarahmad/TraceNox.git
+cd TraceNox
+python -m pip install -e .
+tracenox /var/log/auth.log
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](https://www.python.org/) [![License](https://img.shields.io/badge/License-see%20LICENSE-blue.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/syedshahriyarahmad/TraceNox?style=social)](https://github.com/syedshahriyarahmad/TraceNox/stargazers)
 
 [![TraceNox Tests](https://github.com/syedshahriyarahmad/TraceNox/actions/workflows/tests.yml/badge.svg)](https://github.com/syedshahriyarahmad/TraceNox/actions/workflows/tests.yml)
